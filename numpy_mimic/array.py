@@ -95,7 +95,7 @@ Methods:
 from collections import UserList
 from functools import reduce
 import operator
-from util._array import reshape as _reshape
+from numpy_mimic.util._array import reshape as _reshape
 from abc import ABC
 
 class Flatiter(object):
@@ -179,6 +179,9 @@ class Array(UserList):
 
 	def tolist(self):
 		return [list(e.tolist()) if isinstance(e, self.__class__) else e for e in self.data]
+
+	def __getitem__(self, i):
+		print(i)
 
 	def __repr__(self):
 		# TODO: format output, see 'Array.__str__' for more info
