@@ -23,7 +23,7 @@ Attributes:
 		Length of one array element in bytes.
 	nbytes : int
 		Total bytes consumed by the elements of the array.
-	ndim : tulpe of ints
+	[DONE] ndim : tulpe of ints
 		Number of array dimensions.
 	[DONE] shape : tuple of ints
 		Tuple of array dimensions.
@@ -102,18 +102,40 @@ class Flatiter(object):
 	"""
 	NumPy does not allow subclassing or instantiation of the 'numpy.flatiter' object.
 	If 'numpy.flatiter' is subclassed:
-		TypeError: 
+		TypeError: type 'numpy.flatiter' is not an acceptable base type
+	If 'numpy.flatiter' is instantiated:
+		TypeError: cannot create 'numpy.flatiter' instances
+
+	Therefore, passing an object that is not of type 'numpy_mimc.Array' will not work,
+	as the 'Flatiter.__init__' method calls the 'Array.flatten' and 'Array.tolist'
+	methods. 
 	"""
 	def __init__(self, base):
 		self.base = base
+		self.__data = base.flatten().tolist()
+		self.index = 0
 
+	@property
+	def coords(self):
+		raise NotImplementedError
+
+	def __getitem__(self, i):
+		# if isinstance(i, slice):
+		# 	return self.__data[i]
+		# else:
+		# 	return self.__data[i]
+		return self.__data[i]
+	
 	def __iter__(self):
 		return self
 
 	def __next__(self):
-		pass
-
-# Flatiter(1)
+		try:
+			e = self.__data[self.index]
+			self.index += 1
+			return e
+		except IndexError:
+			raise StopIteration
 
 class Array(UserList):
 	# accepts tuple and converts to list
@@ -131,14 +153,20 @@ class Array(UserList):
 		return len(self.flatten())
 
 	@property
+	def ndim(self):
+		return len(self.shape)
+
+	@property
 	def flat(self):
-		return (a for a in self.flatten())
+		return Flatiter(self)
 
 	@property
 	def shape(self):
 		"""
 		https://numpy.org/doc/stable/reference/generated/numpy.shape.html#numpy.shape
 		"""
+
+		# TODO: think about calculating shape in 'Array.__init__'
 		shp = (len(self.data),)
 		if all(isinstance(e, self.__class__) for e in self.data):
 			# becomes recursive through children with 's.shape' (below)
@@ -181,7 +209,17 @@ class Array(UserList):
 		return [list(e.tolist()) if isinstance(e, self.__class__) else e for e in self.data]
 
 	def __getitem__(self, i):
-		print(i)
+		if isinstance(i, slice):
+			return self.__class__(self.data[i])
+		elif isinstance(i, tuple):
+			raise NotImplementedError
+		elif isinstance(i, bool):
+			raise NotImplementedError
+		else:
+			return self.data[i]
+
+	def __gt__(self, other):
+		return all(e > other for e in self.flat)
 
 	def __repr__(self):
 		# TODO: format output, see 'Array.__str__' for more info
