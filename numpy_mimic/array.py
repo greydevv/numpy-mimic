@@ -140,6 +140,7 @@ class Flatiter(object):
 class Array(UserList):
 	# accepts tuple and converts to list
 	# accepts dict and set
+	# check for ragged lists, raise error (or warning?)
 	def __init__(self, initlist=[]):
 		self.data = []
 		if initlist is not None and isinstance(initlist, list):
@@ -212,14 +213,57 @@ class Array(UserList):
 		if isinstance(i, slice):
 			return self.__class__(self.data[i])
 		elif isinstance(i, tuple):
-			raise NotImplementedError
+			# raise NotImplementedError
+			# if len(i) > self.ndim:
+			# 	raise IndexError(f"too many indices for array: array is {self.ndim}-dimensional, but {len(i)} were indexed.")
+			# return self.__class__(self._slice(i))
+			result = self.__slice(i)
+
+			# if isinstance(result, self.__class__):
+			# 	return self.__clas
+			# return self.__class__(result)
+			return result
 		elif isinstance(i, bool):
 			raise NotImplementedError
 		else:
 			return self.data[i]
 
+	def __slice(self, i, axis=0):
+		# TODO: should I index with 'self' or 'self.data'
+		index = i[0]
+		if isinstance(i[0], slice):
+			for e in self[i[0]]:
+				if isinstance(e, self.__class__):
+					if len(i) == 1:
+						return self[i[0]]
+					return e.__slice(i[1:], axis+1)
+					# result.append(e.__slice(i[1:]))
+				else:
+					return e
+					# result.append(e)
+		else:
+			if i[0] > len(self.data)-1:
+				raise IndexError(f"index {i[0]} is out of bounds for axis {axis} with size {len(self.data)}")
+			
+			e = self[i[0]]
+			if isinstance(e, self.__class__):
+				if len(i) == 1:
+					return self[i[0]]
+				return e.__slice(i[1:], axis+1)
+			else:
+				return e
+	
 	def __gt__(self, other):
 		return all(e > other for e in self.flat)
+
+	def __ge__(self, other):
+		return all(e >= other for e in self.flat)
+
+	def __lt__(self, other):
+		return all(e < other for e in self.flat)
+
+	def __le__(self, other):
+		return all(e <= other for e in self.flat)
 
 	def __repr__(self):
 		# TODO: format output, see 'Array.__str__' for more info
@@ -230,7 +274,9 @@ class Array(UserList):
 		# each line has 72 characters, evenly spaced to line up down the array
 		# [     90      91      92      93      94      95      96      97      98
 		#      99     100     101     102     103     104     105     106 4299890]
-		return str(self.data)
+		# return str(self.data)
+		return f"{self.__class__.__name__}({self.data})"
+
 
 
 
