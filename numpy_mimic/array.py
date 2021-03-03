@@ -95,7 +95,7 @@ Methods:
 from collections import UserList
 from functools import reduce
 import operator
-from numpy_mimic.util._array import reshape as _reshape
+from numpy_mimic.util import reshape as _reshape
 from abc import ABC
 
 class Flatiter(object):
@@ -137,7 +137,7 @@ class Flatiter(object):
 		except IndexError:
 			raise StopIteration
 
-class Array(UserList):
+class Array:
 	# accepts tuple and converts to list
 	# accepts dict and set
 	# check for ragged lists, raise error (or warning?)
@@ -202,13 +202,13 @@ class Array(UserList):
 				result.append(e)
 
 		return self.__class__(result)
-	
-	
 
 	def fill(self, value):
+		# TODO: I don't like this two-method implementation
 		self.data = self.__fill(value)
 
 	def __fill(self, value):
+		# TODO: I don't like this two-method implementation
 		result = []
 		for e in self.data:
 			if isinstance(e, self.__class__):
@@ -298,6 +298,9 @@ class Array(UserList):
 
 	def __le__(self, other):
 		return all(e <= other for e in self.flat)
+
+	def __len__(self):
+		return len(self.data)
 
 	def __repr__(self):
 		# TODO: format output, see 'Array.__str__' for more info
