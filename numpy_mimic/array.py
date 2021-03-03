@@ -151,6 +151,7 @@ class Array(UserList):
 		"""
 		https://numpy.org/doc/stable/reference/generated/numpy.ndarray.size.html#numpy.ndarray.size
 		"""
+		# TODO: think about using math to get this value from the shape?
 		return len(self.flatten())
 
 	@property
@@ -172,9 +173,50 @@ class Array(UserList):
 		if all(isinstance(e, self.__class__) for e in self.data):
 			# becomes recursive through children with 's.shape' (below)
 			sub_shp = [s.shape for s in self.data]
-			if sub_shp.count(sub_shp[0]) == len(sub_shp):
-				shp += sub_shp[0]
+			# TODO: combine two if-statements?
+			if sub_shp:
+				if sub_shp.count(sub_shp[0]) == len(sub_shp):
+					shp += sub_shp[0]
 		return shp
+
+	@property
+	def imag(self):
+		result = []
+		for e in self.data:
+			if isinstance(e, (self.__class__, int, float, complex)):
+				result.append(e.imag)
+			else:
+				# TODO: what if value is a 'str'?
+				result.append(e)
+
+		return self.__class__(result)
+
+	@property
+	def real(self):
+		result = []
+		for e in self.data:
+			if isinstance(e, (self.__class__, int, float, complex)):
+				result.append(e.real)
+			else:
+				# TODO: what if value is a 'str'?
+				result.append(e)
+
+		return self.__class__(result)
+	
+	
+
+	def fill(self, value):
+		self.data = self.__fill(value)
+
+	def __fill(self, value):
+		result = []
+		for e in self.data:
+			if isinstance(e, self.__class__):
+				result.append(e.__fill(value))
+			else:
+				result.append(value)
+
+		return self.__class__(result)
 
 	def flatten(self):
 		"""
@@ -196,14 +238,13 @@ class Array(UserList):
 		"""
 		https://numpy.org/doc/stable/reference/generated/numpy.reshape.html#numpy.reshape
 		"""
-
 		# TODO: think about replacing this with class recursion via children
 		# TODO: add 'order' parameter
-		_size = self.size
-		if reduce(operator.mul, shape, 1) != _size:
-			raise ValueError(f"cannot reshape {self.__class__.__name__} of size {_size} into shape {shape}")
+		size = self.size
+		if reduce(operator.mul, shape, 1) != size:
+			raise ValueError(f"cannot reshape {self.__class__.__name__} of size {size} into shape {shape}")
 
-		result = _reshape(self.flatten(), shape)
+		result = _reshape(self.flatten().data, shape)
 		return self.__class__(result)
 
 	def tolist(self):
@@ -213,45 +254,38 @@ class Array(UserList):
 		if isinstance(i, slice):
 			return self.__class__(self.data[i])
 		elif isinstance(i, tuple):
-			# raise NotImplementedError
-			# if len(i) > self.ndim:
-			# 	raise IndexError(f"too many indices for array: array is {self.ndim}-dimensional, but {len(i)} were indexed.")
-			# return self.__class__(self._slice(i))
-			result = self.__slice(i)
-
-			# if isinstance(result, self.__class__):
-			# 	return self.__clas
-			# return self.__class__(result)
+			if len(i) > self.ndim:
+				raise IndexError(f"too many indices for array: array is {self.ndim}-dimensional, but {len(i)} were indexed.")
+	
+			# result = self.__slice(i)
+			result = self._slice(i)
 			return result
 		elif isinstance(i, bool):
 			raise NotImplementedError
 		else:
+			# TODO: raise IndexError here, get 'axis' somehow
 			return self.data[i]
 
 	def __slice(self, i, axis=0):
-		# TODO: should I index with 'self' or 'self.data'
 		index = i[0]
-		if isinstance(i[0], slice):
-			for e in self[i[0]]:
+		if isinstance(index, slice):
+			result = []
+			for e in self.data[index]:
 				if isinstance(e, self.__class__):
-					if len(i) == 1:
-						return self[i[0]]
-					return e.__slice(i[1:], axis+1)
-					# result.append(e.__slice(i[1:]))
+					result.append(e.__slice(i[1:], axis+1))
 				else:
-					return e
-					# result.append(e)
+					result.append(e)
+			return result
+			# return [e._slice(i[1:], axis+1) if isinstance(e, self.__class__) else e for e in self.data[index]]
 		else:
-			if i[0] > len(self.data)-1:
-				raise IndexError(f"index {i[0]} is out of bounds for axis {axis} with size {len(self.data)}")
-			
-			e = self[i[0]]
+			if index > len(self)-1:
+				raise IndexError(f"index {index} is out of bounds for axis {axis} with size {len(self.data)}")
+			e = self.data[index]
 			if isinstance(e, self.__class__):
-				if len(i) == 1:
-					return self[i[0]]
 				return e.__slice(i[1:], axis+1)
 			else:
 				return e
+
 	
 	def __gt__(self, other):
 		return all(e > other for e in self.flat)
@@ -269,13 +303,59 @@ class Array(UserList):
 		# TODO: format output, see 'Array.__str__' for more info
 		return f"{self.__class__.__name__}({self.data})"
 
+	def __str_old(self, depth=1):
+		# TODO: rename 'depth' parameter to 'axis'? Are they even the same thing?
+		if all(isinstance(e, self.__class__) for e in self.data):
+			# return f"[{[str(e) for e in self.data]}]"
+			lines = []
+			for i,e in enumerate(self.data):
+				if i == len(self.data)-1:
+					buff = " "*depth
+					lines.append(f"{buff}{e.__str(depth)}]")
+				elif i == 0:
+
+					lines.append(f"[{e.__str(depth)}\n")
+				else:
+					lines.append(f"{e.__str(depth)}\n")
+
+				if e.ndim > 1:
+					lines.append("\n")
+
+
+			return "".join(lines)
+		else: 
+			rep = " ".join(str(e) for e in self.data)
+			buff = " "*depth
+			return f"{buff}[{rep}]"
+
+	def __str(self, depth):
+		if all(isinstance(e, self.__class__) for e in self.data):
+			
+			# lines = [e.__str(depth) for e in self.data]
+			lines = []
+			for i,e in enumerate(self.data):
+				lines.append(e.__str(depth))
+
+
+			return "\n".join(lines)
+		else:
+			rep = " ".join(map(str, self.data))
+			buff = " "*depth
+			return f"{buff}[{rep}]"
+		return "NONE"
+
 	def __str__(self):
 		# TODO: format output
 		# each line has 72 characters, evenly spaced to line up down the array
 		# [     90      91      92      93      94      95      96      97      98
-		#      99     100     101     102     103     104     105     106 4299890]
+		#       99     100     101     102     103     104     105     106 4299890]
 		# return str(self.data)
-		return f"{self.__class__.__name__}({self.data})"
+		# return f"{self.__class__.__name__}({self.data})"
+		# spacing = max(len(str(e)) for e in self.flatten())
+		# print(spacing)
+		# return self.__str(self.ndim-1)
+		return str(self.data)
+
 
 
 
