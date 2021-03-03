@@ -92,11 +92,9 @@ Methods:
 	__getitem__ : support tuple slicing
 """
 
-from collections import UserList
 from functools import reduce
 import operator
 from numpy_mimic.util import reshape as _reshape
-from abc import ABC
 
 class Flatiter(object):
 	"""
@@ -137,7 +135,7 @@ class Flatiter(object):
 		except IndexError:
 			raise StopIteration
 
-class Array:
+class Array(object):
 	# accepts tuple and converts to list
 	# accepts dict and set
 	# check for ragged lists, raise error (or warning?)
