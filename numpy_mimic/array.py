@@ -5,17 +5,17 @@ TODO
 Attributes:
 	T : ndarray
 		The transposed array.
-	data: buffer
+	[MAYBE] data: buffer
 		Python buffer object pointing to the start of the array's data.
 	dtype : dtype object
 		Data-type of the array's elements.
-	flags: dict
+	[MAYBE] flags: dict
 		Information about the memory layout of the array.
-	flat : numpy.flatiter object
+	[DONE] flat : numpy.flatiter object
 		A 1-D iterator over the array.
-	imag : ndarray
+	[DONE] imag : ndarray
 		The imaginary part of the array.
-	real : ndarray
+	[DONE] real : ndarray
 		The real part of the array.
 	[DONE] size : int
 		Number of elements in the array. 
@@ -106,7 +106,7 @@ class Flatiter(object):
 
 	Therefore, passing an object that is not of type 'numpy_mimc.Array' will not work,
 	as the 'Flatiter.__init__' method calls the 'Array.flatten' and 'Array.tolist'
-	methods. 
+	methods.
 	"""
 	def __init__(self, base):
 		self.base = base
@@ -118,11 +118,13 @@ class Flatiter(object):
 		raise NotImplementedError
 
 	def __getitem__(self, i):
-		# if isinstance(i, slice):
-		# 	return self.__data[i]
-		# else:
-		# 	return self.__data[i]
-		return self.__data[i]
+		if isinstance(i, slice):
+			return Array(self.__data[i])
+		else:
+			return self.__data[i]
+
+	def __len__(self):
+		return len(self.__data)
 	
 	def __iter__(self):
 		return self
@@ -139,10 +141,10 @@ class Array(object):
 	# accepts tuple and converts to list
 	# accepts dict and set
 	# check for ragged lists, raise error (or warning?)
-	def __init__(self, initlist=[]):
+	def __init__(self, obj=[]):
 		self.data = []
-		if initlist is not None and isinstance(initlist, list):
-			self.data = [Array(e) if isinstance(e, list) else e for e in initlist]
+		if obj is not None and isinstance(obj, list):
+			self.data = [Array(e) if isinstance(e, list) else e for e in obj]
 
 	@property
 	def size(self):
@@ -150,6 +152,7 @@ class Array(object):
 		https://numpy.org/doc/stable/reference/generated/numpy.ndarray.size.html#numpy.ndarray.size
 		"""
 		# TODO: think about using math to get this value from the shape?
+		# Multiply all elements in 'self.shape' to get the size of the 'Array'.
 		return len(self.flatten())
 
 	@property
@@ -165,16 +168,12 @@ class Array(object):
 		"""
 		https://numpy.org/doc/stable/reference/generated/numpy.shape.html#numpy.shape
 		"""
-
 		# TODO: think about calculating shape in 'Array.__init__'
 		shp = (len(self.data),)
 		if all(isinstance(e, self.__class__) for e in self.data):
-			# becomes recursive through children with 's.shape' (below)
 			sub_shp = [s.shape for s in self.data]
-			# TODO: combine two if-statements?
-			if sub_shp:
-				if sub_shp.count(sub_shp[0]) == len(sub_shp):
-					shp += sub_shp[0]
+			if sub_shp and sub_shp.count(sub_shp[0]) == len(sub_shp):
+				shp += sub_shp[0]
 		return shp
 
 	@property
@@ -201,6 +200,15 @@ class Array(object):
 
 		return self.__class__(result)
 
+	def all(self):
+		# TODO: implement 'axis' parameter and others
+		return all(e for e in self.flatten())
+
+	def take(self, indices, axis=None):
+		if axis is None:
+			flattened = self.flatten()[indices]
+			return [flattened[i] for i in indices]
+
 	def fill(self, value):
 		# TODO: I don't like this two-method implementation
 		self.data = self.__fill(value)
@@ -215,6 +223,25 @@ class Array(object):
 				result.append(value)
 
 		return self.__class__(result)
+
+	def transpose(self):
+		"""
+		Base case: 2D array, easy transposition using 'zip' method.
+
+		1. Flatten the data to a 2D array and zip them together.
+		2. Based on shape, compose list of indices using 'range'
+		3. Select from 2D zipped array using list of indices
+			a. [zipped[i] for i in indices]
+		"""
+
+		# can self.ndim be zero?
+		return self if self.ndim <= 1 else self._transpose()
+
+
+	def _transpose(self):
+		result = self.__class__(list(map(list, zip(*[e.flatten() for e in self.data])))).flatten().reshape((self.shape[::-1]))
+		return result
+
 
 	def flatten(self):
 		"""
@@ -252,37 +279,74 @@ class Array(object):
 		if isinstance(i, slice):
 			return self.__class__(self.data[i])
 		elif isinstance(i, tuple):
-			if len(i) > self.ndim:
+			if len([e for e in i if e is not None]) > self.ndim:
 				raise IndexError(f"too many indices for array: array is {self.ndim}-dimensional, but {len(i)} were indexed.")
 	
 			# result = self.__slice(i)
-			result = self._slice(i)
-			return result
+			result = self.aindex(i)
+			return self.__class__(result)
+		elif isinstance(i, list):
+			raise NotImplementedError
 		elif isinstance(i, bool):
 			raise NotImplementedError
 		else:
 			# TODO: raise IndexError here, get 'axis' somehow
 			return self.data[i]
 
-	def __slice(self, i, axis=0):
+	def aindex(self, index):
+		pass
+
+	# def __slice(self, i, axis=0):
+	# 	try:
+	# 		index = i[0]
+	# 		print(f"INDEX: {index}")
+	# 	except IndexError as e:
+	# 		print("ERROR")
+	# 		return
+	# 	if isinstance(index, slice):
+	# 		result = []
+	# 		for e in self.data[index]:
+	# 			if isinstance(e, self.__class__):
+	# 				if len(i) > 1:
+	# 					result.append(e.__slice(i[1:], axis+1))
+	# 			else:
+	# 				result.append(e)
+	# 		return result
+	# 		# return [e._slice(i[1:], axis+1) if isinstance(e, self.__class__) else e for e in self.data[index]]
+	# 	elif isinstance(index, type(None)):
+	# 		# Increases dimension of output by 1 dimension.
+	# 		# 'numpy.newaxis' is used interchangeably with 'None' in the NumPy library.
+	# 		# return [self.__slice(i[1:])]
+	# 		return [self[i[1:]]]
+	# 	else:
+	# 		if index > len(self)-1:
+	# 			raise IndexError(f"index {index} is out of bounds for axis {axis} with size {len(self.data)}")
+	# 		e = self.data[index]
+	# 		if isinstance(e, self.__class__):
+	# 			return e.__slice(i[1:], axis+1)
+	# 		else:
+	# 			return e
+
+
+	def __slice(self, i):
 		index = i[0]
+		nxt = None if len(i) == 1 else i[1:]
 		if isinstance(index, slice):
-			result = []
-			for e in self.data[index]:
-				if isinstance(e, self.__class__):
-					result.append(e.__slice(i[1:], axis+1))
-				else:
-					result.append(e)
-			return result
-			# return [e._slice(i[1:], axis+1) if isinstance(e, self.__class__) else e for e in self.data[index]]
+			if nxt:
+				return [e.__slice(nxt) if isinstance(e, self.__class__) else e for e in self.data[index]]
+			else:
+				return self.data[index]
+		
+		elif isinstance(index, type(None)):
+			return [self.__slice(i[1:])]
+
 		else:
-			if index > len(self)-1:
-				raise IndexError(f"index {index} is out of bounds for axis {axis} with size {len(self.data)}")
 			e = self.data[index]
 			if isinstance(e, self.__class__):
-				return e.__slice(i[1:], axis+1)
+				return e.__slice(i[1:])
 			else:
 				return e
+
 
 	
 	def __gt__(self, other):
@@ -300,9 +364,9 @@ class Array(object):
 	def __len__(self):
 		return len(self.data)
 
-	def __repr__(self):
-		# TODO: format output, see 'Array.__str__' for more info
-		return f"{self.__class__.__name__}({self.data})"
+	# def __repr__(self):
+	# 	# TODO: format output, see 'Array.__str__' for more info
+	# 	return f"{self.__class__.__name__}({self.data})"
 
 	def __str_old(self, depth=1):
 		# TODO: rename 'depth' parameter to 'axis'? Are they even the same thing?
@@ -356,6 +420,8 @@ class Array(object):
 		# print(spacing)
 		# return self.__str(self.ndim-1)
 		return str(self.data)
+
+	__repr__ = __str__
 
 
 

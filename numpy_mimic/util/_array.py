@@ -5,6 +5,10 @@ def shape(array):
 		if sub_shp:
 			if sub_shp.count(sub_shp[0]) == len(sub_shp):
 				shp += sub_shp[0]
+			else:
+				raise ValueError("Ragged data (shapes do not match)!")
+	elif any(isinstance(e, list) for e in array):
+		raise ValueError("Ragged data (found instance of list and other)!")
 	return shp
 
 def flatten(array):
@@ -31,8 +35,8 @@ def zeros(shape, dtype=float):
 def uniform(shape, value=None):
 	if len(shape) == 1:
 		return [value]*shape[0]
-	else:
-		return [uniform(shape[1:], value)]*shape[0]
+	
+	return [uniform(shape[1:], value)]*shape[0]
 
 def chunks(array, step):
 	return [array[i:i+step] for i in range(0, len(array), step)]
@@ -46,29 +50,44 @@ def reshape(array, shape):
 
 	return [reshape(chunk, shape[1:]) for chunk in chunked]
 
-def to_str(array, spacing, depth=1):
-	lines = []
-	ndim = len(shape(array))
-	if all(isinstance(e, list) for e in array):
-		# lines.extend([to_str(e, depth, spacing) for e in array])
-		for i,e in enumerate(array):
-			if i == 0:
-				lines.append(f"[{to_str(e, spacing, depth+1)}")
-			elif i == len(array)-1:
-				lines.append(f"{' '*depth}{to_str(e, spacing, depth+1)}]")
-			else:
-				lines.append(f"{' '*depth}{to_str(e, spacing, depth+1)}")
+def align(s1, s2):
+	l1, l2 = len(s1), len(s2)
+	if l1 < l2:
+		s1 = tuple(1 for _ in range(l2-l1)) + s1
+	elif l1 > l2:
+		s2 = tuple(1 for _ in range(l1-l2)) + s2
+	return s1, s2 
 
-			if ndim > 1:
-				lines.append("\n")
+def compatible(s1, s2):
+	"""
 
-	else:
-		joined = " ".join([f"{' '*(spacing-len(str(e)))}{str(e)}" for e in array])
-		lines.append(f"[{joined}]")
+	Returns 'True' if the two shapes are compatible, else 'False'. The compatibility of the two shapes are determined by the following properties:
+	
+	1. The arrays all have exactly the same shape.
+	2. The arrays all have the same number of dimensions and the length of each dimensions is either a common length or 1.
+	3. The arrays that have too few dimensions can have their shapes prepended with a dimension of length 1 to satisfy property 2.
 
-	# lines = [f"{line}\n" if i == len(lines)-1 else line for i,line in enumerate(lines)]
-	return "".join(lines)
+	From (https://numpy.org/doc/stable/reference/ufuncs.html#broadcasting)
+	"""
+	if len(s1) != len(s2):
+		s1,s2 = align(s1,s2)
+	return all((x == 1 or y == 1) or x == y for x,y in zip(s1,s2))
 
-def _str(array):
-	spacing = len(max(map(str, flatten(array)), key=len))
-	return to_str(array=array, spacing=spacing)
+def broadcast_shape(s1, s2):
+	"""
+	Aligns and creates one shape from two which is useful in broadcasting. This method will not throw an error if the two shapes are not compatible, so it is recommended to use this method with the 'compatible' method.
+	"""
+	s1, s2 = align(s1, s2)
+	return tuple(x if y == 1 else y for x,y in zip(s1,s2))
+
+
+
+
+
+
+
+
+
+
+
+
