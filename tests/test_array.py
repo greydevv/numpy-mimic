@@ -3,6 +3,9 @@ from numpy_mimic import Array
 import numpy as np
 
 """
+Test Cases
+----------
+
 base = np.arange(6).reshape(2,3)
 base = np.arange(12).reshape(4,3,1)
 base = np.arange(280).reshape(4,7,5,2)
