@@ -142,9 +142,14 @@ class Array(object):
 	# accepts dict and set
 	# check for ragged lists, raise error (or warning?)
 	def __init__(self, obj=[]):
-		self.data = []
 		if obj is not None and isinstance(obj, list):
-			self.data = [Array(e) if isinstance(e, list) else e for e in obj]
+			if isinstance(obj, list):
+				self.data = [Array(e) if isinstance(e, list) else e for e in obj]
+			else:
+				pass
+				# try:
+				# 	obj = list(obj)
+				# except 
 
 	@property
 	def size(self):
@@ -235,13 +240,21 @@ class Array(object):
 		"""
 
 		# can self.ndim be zero?
-		return self if self.ndim <= 1 else self._transpose()
+		if self.ndim == 2:
+			result = list(map(list, zip(*self.data)))
+			return self.__class__(result)
+		else:
+			return self if self.ndim <= 1 else self._transpose()
 
 
 	def _transpose(self):
-		result = self.__class__(list(map(list, zip(*[e.flatten() for e in self.data])))).flatten().reshape((self.shape[::-1]))
-		return result
-
+		# result = self.__class__(list(map(list, zip(*[e.flatten() for e in self.data])))).flatten().reshape((self.shape[::-1]))
+		# result = [list(map(list, zip(*map(Array.flatten, self.data))))]
+		# return result
+		new_shp = self.shape[::-1]
+		result = []
+		if self.ndim == 1:
+			pass
 
 	def flatten(self):
 		"""
@@ -311,8 +324,7 @@ class Array(object):
 	# 					result.append(e.__slice(i[1:], axis+1))
 	# 			else:
 	# 				result.append(e)
-	# 		return result
-	# 		# return [e._slice(i[1:], axis+1) if isinstance(e, self.__class__) else e for e in self.data[index]]
+	# 		return result # return [e._slice(i[1:], axis+1) if isinstance(e, self.__class__) else e for e in self.data[index]]
 	# 	elif isinstance(index, type(None)):
 	# 		# Increases dimension of output by 1 dimension.
 	# 		# 'numpy.newaxis' is used interchangeably with 'None' in the NumPy library.
@@ -364,61 +376,11 @@ class Array(object):
 	def __len__(self):
 		return len(self.data)
 
-	# def __repr__(self):
-	# 	# TODO: format output, see 'Array.__str__' for more info
-	# 	return f"{self.__class__.__name__}({self.data})"
-
-	def __str_old(self, depth=1):
-		# TODO: rename 'depth' parameter to 'axis'? Are they even the same thing?
-		if all(isinstance(e, self.__class__) for e in self.data):
-			# return f"[{[str(e) for e in self.data]}]"
-			lines = []
-			for i,e in enumerate(self.data):
-				if i == len(self.data)-1:
-					buff = " "*depth
-					lines.append(f"{buff}{e.__str(depth)}]")
-				elif i == 0:
-
-					lines.append(f"[{e.__str(depth)}\n")
-				else:
-					lines.append(f"{e.__str(depth)}\n")
-
-				if e.ndim > 1:
-					lines.append("\n")
-
-
-			return "".join(lines)
-		else: 
-			rep = " ".join(str(e) for e in self.data)
-			buff = " "*depth
-			return f"{buff}[{rep}]"
-
-	def __str(self, depth):
-		if all(isinstance(e, self.__class__) for e in self.data):
-			
-			# lines = [e.__str(depth) for e in self.data]
-			lines = []
-			for i,e in enumerate(self.data):
-				lines.append(e.__str(depth))
-
-
-			return "\n".join(lines)
-		else:
-			rep = " ".join(map(str, self.data))
-			buff = " "*depth
-			return f"{buff}[{rep}]"
-		return "NONE"
-
 	def __str__(self):
 		# TODO: format output
 		# each line has 72 characters, evenly spaced to line up down the array
 		# [     90      91      92      93      94      95      96      97      98
 		#       99     100     101     102     103     104     105     106 4299890]
-		# return str(self.data)
-		# return f"{self.__class__.__name__}({self.data})"
-		# spacing = max(len(str(e)) for e in self.flatten())
-		# print(spacing)
-		# return self.__str(self.ndim-1)
 		return str(self.data)
 
 	__repr__ = __str__
